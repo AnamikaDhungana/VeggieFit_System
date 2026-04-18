@@ -53,7 +53,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $_SESSION['role'] = 'user';
 
                 $_SESSION['login_success'] = true;
-                header("Location: /Nutrition_System/dashboard.php");
+                header("Location: /VeggieFit_System/dashboard.php");
                 exit();
             } else {
                 header("Location: login.php?error=Incorrect password");

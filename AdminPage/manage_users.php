@@ -189,9 +189,7 @@ td {
                         <td><?= $user['diet_preference'] ?></td>
                         <td>
                             <div class="action-buttons">
-                                <a href="edit_user.php?id=<?= $user['user_id'] ?>">
-                                    <button class="btn edit-btn">Edit</button>
-                                </a>
+                            
                                 <a href="delete_user.php?id=<?= $user['user_id'] ?>" onclick="return confirm('Delete this user?')">
                                     <button class="btn delete-btn">Delete</button>
                                 </a>

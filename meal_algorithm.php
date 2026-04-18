@@ -53,12 +53,18 @@ function getBMICategory($bmi) {
 
 /* FOOD HELPERS */
 
-function getFoodByKeywords($keywords, $meal, $states, $calLimit) {
+function getFoodByKeywords($keywords, $meal, $states, $calLimit, $excludeIds = []) {
     global $conn;
 
     $conditions = [];
     foreach ($keywords as $k) {
         $conditions[] = "food_name LIKE '%$k%'";
+    }
+
+    $excludeClause = '';
+    if (!empty($excludeIds)) {
+        $placeholders = implode(',', array_fill(0, count($excludeIds), '?'));
+        $excludeClause = "AND food_id NOT IN ($placeholders)";
     }
 
     $sql = "
@@ -68,25 +74,31 @@ function getFoodByKeywords($keywords, $meal, $states, $calLimit) {
         AND food_state IN (" . implode(',', array_fill(0, count($states), '?')) . ")
         AND (" . implode(' OR ', $conditions) . ")
         AND calories <= ?
+        $excludeClause
         ORDER BY RAND()
         LIMIT 1
     ";
 
-    $params = array_merge([$meal], $states, [$calLimit]);
+    $params = array_merge([$meal], $states, [$calLimit], $excludeIds);
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function getExtraProteinFood($meal, $states) {
+/* Multiple options for randomness */
+function getMultipleFoodsByKeywords($keywords, $meal, $states, $calLimit, $excludeIds = [], $limit = 2) {
     global $conn;
 
-    $proteinFoods = ['Paneer','Dal','Chana','Chickpea','Rajma','Sprouts','Tofu'];
-
     $conditions = [];
-    foreach ($proteinFoods as $p) {
-        $conditions[] = "food_name LIKE '%$p%'";
+    foreach ($keywords as $k) {
+        $conditions[] = "food_name LIKE '%$k%'";
+    }
+
+    $excludeClause = '';
+    if (!empty($excludeIds)) {
+        $placeholders = implode(',', array_fill(0, count($excludeIds), '?'));
+        $excludeClause = "AND food_id NOT IN ($placeholders)";
     }
 
     $sql = "
@@ -95,12 +107,48 @@ function getExtraProteinFood($meal, $states) {
         AND diet_type = 'Vegetarian'
         AND food_state IN (" . implode(',', array_fill(0, count($states), '?')) . ")
         AND (" . implode(' OR ', $conditions) . ")
+        AND calories <= ?
+        $excludeClause
+        ORDER BY RAND()
+        LIMIT $limit
+    ";
+
+    $params = array_merge([$meal], $states, [$calLimit], $excludeIds);
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getExtraProteinFood($meal, $states, $excludeIds = []) {
+    global $conn;
+
+    $proteinFoods = ['Paneer','Dal','Chana','Chickpea','Rajma','Sprouts','Tofu','Soya','Soybean','Tempeh','Seitan','Edamame'];
+
+    $conditions = [];
+    foreach ($proteinFoods as $p) {
+        $conditions[] = "food_name LIKE '%$p%'";
+    }
+
+    $excludeClause = '';
+    if (!empty($excludeIds)) {
+        $placeholders = implode(',', array_fill(0, count($excludeIds), '?'));
+        $excludeClause = "AND food_id NOT IN ($placeholders)";
+    }
+
+    $sql = "
+        SELECT * FROM foods
+        WHERE category = ?
+        AND diet_type = 'Vegetarian'
+        AND food_state IN (" . implode(',', array_fill(0, count($states), '?')) . ")
+        AND (" . implode(' OR ', $conditions) . ")
+        $excludeClause
         ORDER BY protein DESC
         LIMIT 1
     ";
 
     $stmt = $conn->prepare($sql);
-    $stmt->execute(array_merge([$meal], $states));
+    $stmt->execute(array_merge([$meal], $states, $excludeIds));
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
@@ -111,36 +159,52 @@ function generateMealPlan($plan_id, $dailyCalories, $dailyProtein) {
     global $conn;
 
     $meals = [
-        'Breakfast' => ['ratio' => 0.25, 'states' => ['Raw','Fresh','Plain']],
-        'Lunch'     => ['ratio' => 0.35, 'states' => ['Cooked','Boiled']],
-        'Dinner'    => ['ratio' => 0.30, 'states' => ['Cooked','Boiled']],
+        'Breakfast' => ['ratio' => 0.25, 'states' => ['Raw','Fresh','Plain','Cooked','Boiled']],
+        'Lunch'     => ['ratio' => 0.35, 'states' => ['Cooked','Boiled','Fresh']],
+        'Dinner'    => ['ratio' => 0.30, 'states' => ['Cooked','Boiled','Fresh']],
         'Snack'     => ['ratio' => 0.10, 'states' => ['Raw','Fresh','Plain']]
     ];
 
     $roles = [
-        'carb'    => ['Rice','Roti','Chapati','Poha','Upma'],
-        'protein' => ['Dal','Paneer','Chana','Chickpea','Rajma','Sprouts'],
-        'veg'     => ['Veg','Sabji','Curry','Saag']
+        'carb'    => ['Rice','Roti','Chapati','Paratha','Khichdi','Sorghum','Junelo'],
+        'protein' => ['Dal','Paneer','Chana','Chickpea','Rajma','Sprouts','Tofu','Soya','Soybean','Tempeh','Seitan','Edamame','Curry'],
+        'veg'     => ['Veg','Sabji','Curry','Saag','Salad','Soup','Vegetable']
     ];
 
     $totalCalories = $totalProtein = $totalCarbs = $totalFats = 0;
+    $usedFoodIds = [];
 
     foreach ($meals as $meal => $config) {
 
         $mealCalLimit = $dailyCalories * $config['ratio'];
         $foodsToInsert = [];
 
-        /* === LUNCH & DINNER: STRICT STRUCTURE === */
+        /* LUNCH & DINNER: STRUCTURED ROLE-BASED SELECTION WITH VARIETY */
         if ($meal === 'Lunch' || $meal === 'Dinner') {
-            $foodsToInsert[] = getFoodByKeywords($roles['carb'], $meal, $config['states'], $mealCalLimit);
-            $foodsToInsert[] = getFoodByKeywords($roles['protein'], $meal, $config['states'], $mealCalLimit);
-            $foodsToInsert[] = getFoodByKeywords($roles['veg'], $meal, $config['states'], $mealCalLimit);
-        } 
-        /* === BREAKFAST & SNACK: CALORIE-BASED SELECTION === */
+
+            foreach (['carb', 'protein', 'veg'] as $role) {
+
+                $foods = getMultipleFoodsByKeywords(
+                    $roles[$role],
+                    $meal,
+                    $config['states'],
+                    $mealCalLimit,
+                    $usedFoodIds,
+                    2
+                );
+
+                if (!empty($foods)) {
+                    $food = $foods[array_rand($foods)];
+                    $foodsToInsert[] = $food;
+                    $usedFoodIds[] = $food['food_id'];
+                }
+            }
+
+        }
+        /* BREAKFAST & SNACK: CALORIE-BASED SELECTION */
         else {
             $mealCaloriesSoFar = 0;
 
-            // Fetch all eligible foods randomly
             $stmt = $conn->prepare("
                 SELECT * FROM foods
                 WHERE category = ?
@@ -152,21 +216,18 @@ function generateMealPlan($plan_id, $dailyCalories, $dailyProtein) {
             $allFoods = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($allFoods as $food) {
-                if (!$food) continue;
+                if (in_array($food['food_id'], $usedFoodIds)) continue;
 
                 $foodsToInsert[] = $food;
+                $usedFoodIds[] = $food['food_id'];
                 $mealCaloriesSoFar += $food['calories'];
 
-                if ($mealCaloriesSoFar >= $mealCalLimit) {
-                    break; // stop once we reach calorie target
-                }
+                if ($mealCaloriesSoFar >= $mealCalLimit) break;
             }
         }
 
         /* INSERT FOODS INTO DB */
         foreach ($foodsToInsert as $food) {
-            if (!$food) continue;
-
             $insert = $conn->prepare("
                 INSERT INTO meal_items (plan_id, meal_type, food_id, quantity)
                 VALUES (?, ?, ?, 1)
@@ -180,18 +241,17 @@ function generateMealPlan($plan_id, $dailyCalories, $dailyProtein) {
         }
     }
 
-    /* PROTEIN BOOST LOGIC */
+    /* PROTEIN BOOST LOGIC — tries Dinner first, falls back to Snack */
     $proteinGap = $dailyProtein - $totalProtein;
 
     if ($proteinGap > 5) {
-        $boostMeals = ['Snack','Dinner'];
+        $boostMeals = [
+            'Dinner' => ['Cooked', 'Boiled', 'Fresh'],
+            'Snack'  => ['Raw', 'Fresh', 'Plain'],
+        ];
 
-        foreach ($boostMeals as $boostMeal) {
-            $states = ($boostMeal === 'Snack')
-                ? ['Raw','Fresh','Plain']
-                : ['Cooked','Boiled'];
-
-            $extra = getExtraProteinFood($boostMeal, $states);
+        foreach ($boostMeals as $boostMeal => $states) {
+            $extra = getExtraProteinFood($boostMeal, $states, $usedFoodIds);
 
             if ($extra) {
                 $insert = $conn->prepare("
@@ -200,12 +260,15 @@ function generateMealPlan($plan_id, $dailyCalories, $dailyProtein) {
                 ");
                 $insert->execute([$plan_id, $boostMeal, $extra['food_id']]);
 
+                /* Update running totals so final UPDATE is accurate */
                 $totalCalories += $extra['calories'];
                 $totalProtein  += $extra['protein'];
                 $totalCarbs    += $extra['carbs'];
                 $totalFats     += $extra['fats'];
 
-                break; // only one boost
+                $usedFoodIds[] = $extra['food_id'];
+
+                break; // stop after first successful boost
             }
         }
     }
@@ -223,6 +286,125 @@ function generateMealPlan($plan_id, $dailyCalories, $dailyProtein) {
         round($totalCarbs, 2),
         round($totalFats, 2),
         $plan_id
+    ]);
+}
+
+/* CONTENT-BASED MATCHING ALGORITHM */
+
+function findSimilarUserPlan($current_user_id, $gender, $weight, $height, $age, $activity_level, $diet_preference) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        SELECT mp.plan_id, mp.total_calories, mp.total_protein, mp.total_carbs, mp.total_fats
+        FROM meal_plans mp
+        JOIN users u ON mp.user_id = u.user_id
+        WHERE u.user_id != :current_user_id
+          AND LOWER(TRIM(u.gender)) = LOWER(TRIM(:gender))
+          AND LOWER(TRIM(u.diet_preference)) = LOWER(TRIM(:diet_preference))
+          AND LOWER(TRIM(u.activity_level)) = LOWER(TRIM(:activity_level))
+          AND ABS(u.weight_kg - :weight) <= 2
+          AND ABS(u.height_cm - :height) <= 2
+          AND ABS(u.age - :age) <= 2
+        ORDER BY mp.plan_id DESC
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        ':current_user_id' => $current_user_id,
+        ':gender'          => $gender,
+        ':diet_preference' => $diet_preference,
+        ':activity_level'  => $activity_level,
+        ':weight'          => $weight,
+        ':height'          => $height,
+        ':age'             => $age,
+    ]);
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function cloneMealPlan($source_plan_id, $new_plan_id) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        INSERT INTO meal_items (plan_id, meal_type, food_id, quantity)
+        SELECT :new_plan_id, meal_type, food_id, quantity
+        FROM meal_items
+        WHERE plan_id = :source_plan_id
+    ");
+
+    return $stmt->execute([
+        ':new_plan_id'    => $new_plan_id,
+        ':source_plan_id' => $source_plan_id,
+    ]);
+}
+
+function generateMealPlanFromTemplate($source_plan_id, $new_plan_id, $calorieTarget, $proteinTarget) {
+    global $conn;
+
+    // Clone base plan
+    $cloned = cloneMealPlan($source_plan_id, $new_plan_id);
+    if (!$cloned) return false;
+
+    // Change 1 random food (variation)
+    $stmt = $conn->prepare("
+        SELECT meal_item_id, meal_type
+        FROM meal_items
+        WHERE plan_id = ?
+        ORDER BY RAND()
+        LIMIT 1
+    ");
+    $stmt->execute([$new_plan_id]);
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($item) {
+        $stmt2 = $conn->prepare("
+            SELECT food_id FROM foods
+            WHERE category = ?
+            ORDER BY RAND()
+            LIMIT 1
+        ");
+        $stmt2->execute([$item['meal_type']]);
+        $newFood = $stmt2->fetch(PDO::FETCH_ASSOC);
+
+        if ($newFood) {
+            $update = $conn->prepare("
+                UPDATE meal_items SET food_id = ?
+                WHERE meal_item_id = ?
+            ");
+            $update->execute([$newFood['food_id'], $item['meal_item_id']]);
+        }
+    }
+
+    // Recalculate totals
+    $stmt = $conn->prepare("
+        SELECT f.calories, f.protein, f.carbs, f.fats
+        FROM meal_items mi
+        JOIN foods f ON mi.food_id = f.food_id
+        WHERE mi.plan_id = ?
+    ");
+    $stmt->execute([$new_plan_id]);
+
+    $cal = $pro = $carb = $fat = 0;
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $cal  += $row['calories'];
+        $pro  += $row['protein'];
+        $carb += $row['carbs'];
+        $fat  += $row['fats'];
+    }
+
+    $update = $conn->prepare("
+        UPDATE meal_plans
+        SET total_calories=?, total_protein=?, total_carbs=?, total_fats=?
+        WHERE plan_id=?
+    ");
+
+    return $update->execute([
+        round($cal),
+        round($pro, 2),
+        round($carb, 2),
+        round($fat, 2),
+        $new_plan_id
     ]);
 }
 ?>

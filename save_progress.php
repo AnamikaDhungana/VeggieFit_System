@@ -22,11 +22,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
    GET & SANITIZE INPUTS
 ========================= */
 $weight   = isset($_POST['weight_kg']) ? (float) $_POST['weight_kg'] : 0;
-$calories = isset($_POST['calories_consumed']) && $_POST['calories_consumed'] !== ''
-            ? (int) $_POST['calories_consumed'] : null;
 
-$protein  = isset($_POST['protein_consumed']) && $_POST['protein_consumed'] !== ''
-            ? (float) $_POST['protein_consumed'] : null;
+/* REQUIRED FIELDS (UPDATED) */
+$calories = $_POST['calories_consumed'] ?? '';
+$protein  = $_POST['protein_consumed'] ?? '';
+
+if ($calories === '' || $protein === '') {
+    $_SESSION['error'] = "Calories and Protein are required fields";
+    header("Location: log_weight.php");
+    exit();
+}
+
+$calories = (int) $calories;
+$protein  = (float) $protein;
 
 $notes = $_POST['notes'] ?? '';
 $date  = $_POST['date'] ?? date('Y-m-d');
@@ -41,19 +49,18 @@ if ($weight <= 0 || $weight > 300) {
     exit();
 }
 
-if ($calories !== null && ($calories < 0 || $calories > 10000)) {
+if ($calories < 0 || $calories > 10000) {
     $_SESSION['error'] = "Please enter valid calories (0–10000)";
     header("Location: log_weight.php");
     exit();
 }
 
-if ($protein !== null && ($protein < 0 || $protein > 500)) {
+if ($protein < 0 || $protein > 500) {
     $_SESSION['error'] = "Please enter valid protein amount (0–500 g)";
     header("Location: log_weight.php");
     exit();
 }
 
-// Prevent future logging
 if ($date > $today) {
     $_SESSION['error'] = "Cannot log data for future dates";
     header("Location: log_weight.php");
@@ -72,7 +79,7 @@ $checkStmt->execute([$user_id, $date]);
 $hasLogged = $checkStmt->fetch();
 
 /* =========================
-   YESTERDAY WEIGHT (for message)
+   YESTERDAY WEIGHT
 ========================= */
 $yesterday = date('Y-m-d', strtotime('-1 day'));
 $yesterdayStmt = $conn->prepare("
@@ -89,17 +96,17 @@ $yesterdayWeight = $yesterdayStmt->fetch(PDO::FETCH_ASSOC);
 try {
 
     if ($hasLogged) {
-        // UPDATE
+
         $stmt = $conn->prepare("
             UPDATE progress_tracking
-            SET 
-                weight_kg = ?, 
+            SET weight_kg = ?, 
                 calories_consumed = ?, 
                 protein_consumed = ?, 
                 notes = ?, 
                 updated_at = NOW()
             WHERE user_id = ? AND date = ?
         ");
+
         $stmt->execute([
             $weight,
             $calories,
@@ -111,12 +118,13 @@ try {
 
         $message = "Today's progress updated successfully!";
     } else {
-        // INSERT
+
         $stmt = $conn->prepare("
             INSERT INTO progress_tracking 
-                (user_id, date, weight_kg, calories_consumed, protein_consumed, notes)
+            (user_id, date, weight_kg, calories_consumed, protein_consumed, notes)
             VALUES (?, ?, ?, ?, ?, ?)
         ");
+
         $stmt->execute([
             $user_id,
             $date,
@@ -129,17 +137,13 @@ try {
         $message = "Daily progress logged successfully!";
     }
 
-    /* =========================
-       UPDATE CURRENT WEIGHT
-    ========================= */
+    /* UPDATE USER WEIGHT */
     $updateUserStmt = $conn->prepare("
         UPDATE users SET weight_kg = ? WHERE user_id = ?
     ");
     $updateUserStmt->execute([$weight, $user_id]);
 
-    /* =========================
-       DAILY CHANGE MESSAGE
-    ========================= */
+    /* WEIGHT CHANGE MESSAGE */
     $changeMessage = "";
     if ($yesterdayWeight && $date === $today) {
         $diff = $weight - $yesterdayWeight['weight_kg'];
@@ -159,9 +163,6 @@ try {
     $_SESSION['error'] = "Database error: " . $e->getMessage();
 }
 
-/* =========================
-   REDIRECT
-========================= */
 header("Location: progress.php");
 exit();
 ?>

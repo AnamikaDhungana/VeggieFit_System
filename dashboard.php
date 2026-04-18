@@ -359,7 +359,6 @@ body {
         <p><?= date('l, F j, Y') ?> • Daily Target: <?= number_format($calorieTarget) ?> kcal | Protein Target: <?= number_format($proteinTarget) ?>g</p>
     </div>
     <div>
-        <a href="profile.php" class="btn btn-secondary">Edit Profile</a>
         <a href="Login/logout.php" class="btn btn-primary">Logout</a>
     </div>
 </div>

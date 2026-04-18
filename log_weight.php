@@ -139,12 +139,6 @@ if ($lastDate) {
             outline: none;
         }
 
-        .optional {
-            font-size: 12px;
-            color: var(--gray);
-            font-style: italic;
-        }
-
         .btn {
             width: 100%;
             padding: 14px;
@@ -204,30 +198,24 @@ if ($lastDate) {
         </div>
 
         <div class="form-group">
-            <label class="form-label">
-                Calories Consumed <span class="optional">(optional)</span>
-            </label>
+            <label class="form-label">Calories Consumed *</label>
             <input type="number" name="calories_consumed" class="form-input"
                    min="0" max="10000"
-                   value="<?= $todayLog['calories_consumed'] ?? '' ?>">
+                   value="<?= $todayLog['calories_consumed'] ?? '' ?>"
+                   required>
         </div>
 
-        <!-- ✅ PROTEIN FIELD ADDED -->
         <div class="form-group">
-            <label class="form-label">
-                Protein Consumed (g) <span class="optional">(optional)</span>
-            </label>
+            <label class="form-label">Protein Consumed (g) *</label>
             <input type="number" name="protein_consumed" class="form-input"
                    step="0.1" min="0" max="500"
                    placeholder="e.g. 90"
-                   value="<?= $todayLog['protein_consumed'] ?? '' ?>">
-            <div class="optional">
-                Useful for gym users & muscle retention during weight loss
-            </div>
+                   value="<?= $todayLog['protein_consumed'] ?? '' ?>"
+                   required>
         </div>
 
         <div class="form-group">
-            <label class="form-label">Notes <span class="optional">(optional)</span></label>
+            <label class="form-label">Notes</label>
             <textarea name="notes" class="form-input" rows="3"><?= $todayLog['notes'] ?? '' ?></textarea>
         </div>
 

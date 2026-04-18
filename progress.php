@@ -502,9 +502,6 @@ if ($logs && $logs[0]['date'] == $today) {
         
         <!-- Actions -->
         <div class="actions">
-            <a href="log_weight.php" class="btn btn-primary">
-                <?= $loggedToday ? '📝 Update Today\'s Log' : '✅ Log Today\'s Progress' ?>
-            </a>
             <a href="dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
             <?php if ($streak > 2): ?>
                 <a href="#" class="btn btn-streak">🔥 <?= $streak ?> Day Streak</a>
@@ -1100,25 +1097,43 @@ if ($logs && $logs[0]['date'] == $today) {
                     document.querySelector('.charts-container').insertAdjacentElement('afterend', messageDiv);
                     
                 } else {
-                    // Not enough data
-                    document.querySelector('.charts-container').innerHTML = `
-                        <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-                            <div style="font-size: 60px; margin-bottom: 20px;">📊</div>
-                            <h3 style="color: var(--primary); margin-bottom: 10px;">Getting Started!</h3>
-                            <p>You've logged <strong>${logs.length} day</strong>. Log data for <strong>tomorrow</strong> to see your progress line!</p>
-                            <div style="margin-top: 25px;">
-                                <a href="log_weight.php" class="btn btn-primary" style="display: inline-block;">
-                                    ✅ Log Tomorrow's Data
-                                </a>
-                            </div>
-                            <div style="margin-top: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                <p style="margin: 0; font-size: 14px; color: var(--gray);">
-                                    💡 <strong>Tip:</strong> Log daily to build a complete picture of your health journey!
-                                </p>
-                            </div>
-                        </div>
-                    `;
-                }
+    const loggedToday = <?= json_encode($loggedToday) ?>;
+    const todayEntry = logs.find(l => l.date === today);
+
+    let innerHtml = `
+        <div style="grid-column:1/-1;text-align:center;padding:40px;">
+            <div style="font-size:60px;margin-bottom:20px;">📊</div>
+            <h3 style="color:var(--primary);margin-bottom:10px;">Getting Started!</h3>
+            <p>You've logged <strong>${logs.length} day</strong>. Keep logging daily to see your progress chart!</p>
+    `;
+
+    if (loggedToday && todayEntry) {
+        innerHtml += `
+            <div style="margin-top:20px;background:#f0fff4;border:1px solid #c3e6cb;border-radius:10px;padding:15px;max-width:300px;margin-left:auto;margin-right:auto;">
+                <strong style="color:var(--primary);">✅ Today's Log</strong><br><br>
+                ⚖️ ${parseFloat(todayEntry.weight_kg).toFixed(1)} kg &nbsp;|&nbsp;
+                🔥 ${todayEntry.calories_consumed > 0 ? todayEntry.calories_consumed + ' kcal' : '—'} &nbsp;|&nbsp;
+                💪 ${todayEntry.protein_consumed > 0 ? todayEntry.protein_consumed + 'g' : '—'}
+            </div>
+            <p style="margin-top:15px;font-size:13px;color:var(--gray);">🌟 Come back tomorrow to build your streak!</p>
+        `;
+    } else {
+        innerHtml += `
+            <div style="margin-top:25px;">
+                <a href="log_weight.php" class="btn btn-primary" style="display:inline-block;">✅ Log Tomorrow's Data</a>
+            </div>
+        `;
+    }
+
+    innerHtml += `
+            <div style="margin-top:20px;background:#f8f9fa;padding:15px;border-radius:8px;">
+                <p style="margin:0;font-size:14px;color:var(--gray);">💡 <strong>Tip:</strong> Log daily to build a complete picture of your health journey!</p>
+            </div>
+        </div>
+    `;
+
+    document.querySelector('.charts-container').innerHTML = innerHtml;
+}
             </script>
             
         <?php else: ?>

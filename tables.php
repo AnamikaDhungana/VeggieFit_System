@@ -4,7 +4,7 @@ include 'db_connection.php';
 
 try {
 
-    /* USERS TABLE */
+    /* USERS TABLE (CLEAN STRUCTURE) */
     $sql = "CREATE TABLE IF NOT EXISTS users (
         user_id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(100) NOT NULL,
@@ -12,29 +12,41 @@ try {
         password VARCHAR(255) NOT NULL,
         reset_token VARCHAR(255) DEFAULT NULL,
         reset_token_expiry DATETIME DEFAULT NULL,
-        gender ENUM('Male','Female','Other') NOT NULL,
+
+        gender ENUM('Male','Female') NOT NULL,
         age INT NOT NULL,
         height_cm FLOAT NOT NULL,
         weight_kg FLOAT NOT NULL,
+
         diet_preference ENUM('Vegetarian','Vegan','Non-Vegetarian') DEFAULT 'Vegetarian',
-        activity_level FLOAT DEFAULT 1.2,
+
+        activity_level ENUM(
+            'Sedentary',
+            'Light',
+            'Moderate',
+            'Active',
+            'Very Active'
+        ) DEFAULT 'Sedentary',
+
         reminders_enabled TINYINT(1) DEFAULT 1,
         breakfast_time TIME DEFAULT '08:00:00',
         lunch_time TIME DEFAULT '12:30:00',
         snack_time TIME DEFAULT '15:30:00',
         dinner_time TIME DEFAULT '19:00:00',
+
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;";
+
     $conn->exec($sql);
-    echo "✅ users table ready<br>";
+    echo "✔ users table ready<br>";
+
 
     /* FOODS TABLE */
     $sql = "CREATE TABLE IF NOT EXISTS foods (
         food_id INT AUTO_INCREMENT PRIMARY KEY,
         food_name VARCHAR(100) NOT NULL,
 
-        -- NEW: Meal category
         category ENUM('Breakfast','Lunch','Dinner','Snack') NOT NULL,
 
         diet_type ENUM('Vegetarian','Non-Vegetarian') DEFAULT 'Vegetarian',
@@ -46,14 +58,17 @@ try {
         protein FLOAT NOT NULL,
         carbs FLOAT DEFAULT 0,
         fats FLOAT DEFAULT 0,
+
         recipe_details TEXT DEFAULT NULL,
         image VARCHAR(255) DEFAULT NULL,
 
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;";
+
     $conn->exec($sql);
-    echo "✅ foods table ready (with category & protein)<br>";
+    echo "✔ foods table ready<br>";
+
 
     /* MEAL PLANS TABLE */
     $sql = "CREATE TABLE IF NOT EXISTS meal_plans (
@@ -66,8 +81,10 @@ try {
         total_fats FLOAT,
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     ) ENGINE=InnoDB;";
+
     $conn->exec($sql);
-    echo "✅ meal_plans table ready<br>";
+    echo "✔ meal_plans table ready<br>";
+
 
     /* MEAL ITEMS TABLE */
     $sql = "CREATE TABLE IF NOT EXISTS meal_items (
@@ -80,8 +97,10 @@ try {
         FOREIGN KEY (plan_id) REFERENCES meal_plans(plan_id) ON DELETE CASCADE,
         FOREIGN KEY (food_id) REFERENCES foods(food_id) ON DELETE CASCADE
     ) ENGINE=InnoDB;";
+
     $conn->exec($sql);
-    echo "✅ meal_items table ready<br>";
+    echo "✔ meal_items table ready<br>";
+
 
     /* PROGRESS TRACKING TABLE */
     $sql = "CREATE TABLE IF NOT EXISTS progress_tracking (
@@ -94,8 +113,10 @@ try {
         notes TEXT,
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     ) ENGINE=InnoDB;";
+
     $conn->exec($sql);
-    echo "✅ progress_tracking table ready<br>";
+    echo "✔ progress_tracking table ready<br>";
+
 
     /* ADMIN TABLE */
     $sql = "CREATE TABLE IF NOT EXISTS admin (
@@ -105,11 +126,12 @@ try {
         role ENUM('SuperAdmin','Manager') DEFAULT 'Manager',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;";
+
     $conn->exec($sql);
-    echo "✅ admin table ready<br>";
+    echo "✔ admin table ready<br>";
 
 } catch (PDOException $e) {
-    echo "❌ PDO Error: " . $e->getMessage();
+    echo "PDO Error: " . $e->getMessage();
 }
 
 $conn = null;
