@@ -10,153 +10,174 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        :root {
-            --bg:#f8f4ff;
-            --sunset:linear-gradient(150deg,#ffd56f,#ff9b7b,#d458f2);
-            --accent:#8c34d6;
-            --muted:#6b6b6b;
-            --card-shadow:0 20px 60px rgba(46,9,82,.15);
-        }
-        *{box-sizing:border-box;}
-        body{
-            margin:0;
-            font-family:'Times New Roman', Times, serif;
-            background:var(--bg);
-            min-height:100vh;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            padding:32px 16px;
-        }
-        .app-shell{
-            width:100%;
-            max-width:1120px;
-            background:#fff;
-            border-radius:36px;
-            box-shadow:0 32px 90px rgba(57,9,120,.18);
-            overflow:visible ;
-        }
-        .content{display:flex;flex-wrap:nowrap;}
-        .hero-pane{
-            flex:0 0 58%;
-            background:var(--sunset);
-            color:#fff;
-            padding:70px 80px 70px 70px;
-            min-height:560px;
-            position:relative;
-            overflow:hidden;
-        }
-        .hero-pane::after,
-        .hero-pane::before {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-        }
-        .hero-pane::after {
-            width: 460px;
-            height: 460px;
-            top: -160px;
-            right: -180px;
-        }
-        .hero-pane::before {
-            width: 300px;
-            height: 300px;
-            bottom: -140px;
-            left: -70px;
-        }
-        .hero-pane .curve-clip {
-            position: absolute;
-            top: 0;
-            right: -220px;
-            width: 380px;
-            height: 100%;
-            background: #fff;
-            border-top-left-radius: 70% 100%;
-            border-bottom-left-radius: 70% 100%;
-            z-index: 0;
-        }
-        .hero-pane h1{margin:0;font-size:42px;position:relative;z-index:1;}
-        .hero-pane p{margin:18px 0 32px;font-size:17px;max-width:360px;line-height:1.6;position:relative;z-index:1;}
-        .hero-illustration {
-            width: 100%;
-            max-width: 500px;
-            position: relative;
-            z-index: 1;
-            margin-top: 20px;
-        }
-        .hero-illustration svg {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .form-pane{
-            flex:1;
-            padding:70px 60px;
-            background:#fff;
-        }
-        .form-card{
-            background:#fff;
-            border-radius:30px;
-            box-shadow:var(--card-shadow);
-            padding:34px 38px 44px;
-        }
-        .form-card h2{
-            margin:0;
-            font-size:28px;
-            color:var(--accent);
-        }
-        .form-card span{
-            display:block;
-            margin-top:6px;
-            color:var(--muted);
-            font-size:15px;
-        }
-        .input-row{
-            margin-top:18px;
-            position:relative;
-        }
-        .input-row:has(.input-label) {
-            margin-top: 24px;
-        }
-        .input-row:has(.input-label) .input-label {
-            margin-top: 0;
-        }
-        .input-row svg.input-icon{
-            width:18px;
-            height:18px;
-            position:absolute;
-            left:18px;
-            top:50%;
-            transform:translateY(-50%);
-            fill:#b39edc;
-            z-index:1;
-        }
-        .input-row .password-icon {
-            display: none; /* Hide lock icon for password fields */
-        }
-        .input-row input,
-        .input-row select{
-            width:100%;
-            border-radius:16px;
-            border:1.5px solid #e4d9ff;
-            padding:14px 50px 14px 54px;
-            font-size:15px;
-            transition:0.3s ease;
-        }
-        /* Only password and confirm password */
-#password,
-#confirm_password {
-    width: 100%;
-    padding: 14px 50px 14px 14px; /* left for typing, right for eye icon */
-    font-size: 15px;
-    border-radius: 16px;
-    border: 1.5px solid #e4d9ff;
+:root {
+    --bg:#f8f4ff;
+    --sunset:linear-gradient(150deg,#ffd56f,#ff9b7b,#d458f2);
+    --accent:#8c34d6;
+    --muted:#6b6b6b;
+    --card-shadow:0 20px 60px rgba(46,9,82,.15);
+}
+
+/* RESET */
+* {
     box-sizing: border-box;
+}
+
+/* BODY */
+body {
+    margin: 0;
+    font-family: 'Times New Roman', Times, serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 32px 16px;
+}
+
+/* MAIN WRAPPER */
+.app-shell {
+    width: 100%;
+    max-width: 1120px;
+    background: #fff;
+    border-radius: 36px;
+    box-shadow: 0 32px 90px rgba(57,9,120,.18);
+    overflow: hidden;
+}
+
+/* LAYOUT */
+.content {
+    display: flex;
+}
+
+/* HERO SECTION */
+.hero-pane {
+    flex: 0 0 58%;
+    background: var(--sunset);
+    color: #fff;
+    padding: 70px;
+    min-height: 560px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-pane::after,
+.hero-pane::before {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+}
+
+.hero-pane::after {
+    width: 460px;
+    height: 460px;
+    top: -160px;
+    right: -180px;
+}
+
+.hero-pane::before {
+    width: 300px;
+    height: 300px;
+    bottom: -140px;
+    left: -70px;
+}
+
+.hero-pane h1 {
+    margin: 0;
+    font-size: 42px;
+    position: relative;
+    z-index: 1;
+}
+
+.hero-pane p {
+    margin: 18px 0 32px;
+    font-size: 17px;
+    max-width: 360px;
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+}
+
+/* FORM SIDE */
+.form-pane {
+    flex: 1;
+    padding: 70px 60px;
+}
+
+.form-card {
+    background: #fff;
+    border-radius: 30px;
+    box-shadow: var(--card-shadow);
+    padding: 34px 38px 44px;
+}
+
+.form-card h2 {
+    margin: 0;
+    font-size: 28px;
+    color: var(--accent);
+}
+
+.form-card span {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 15px;
+}
+
+/* INPUT WRAPPER */
+.input-row {
+    margin-top: 18px;
+    position: relative;
+}
+
+/* ICON */
+.input-row svg.input-icon {
+    width: 18px;
+    height: 18px;
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    fill: #b39edc;
+    pointer-events: none;
+}
+
+/* INPUT BASE STYLE */
+.input-row input,
+.input-row select {
+    width: 100%;
+    border-radius: 16px;
+    border: 1.5px solid #000; /* default black */
+    padding: 14px 14px 14px 54px;
+    font-size: 15px;
     transition: 0.3s ease;
 }
 
-/* Eye icon for password fields */
+#password,
+#confirm_password {
+    padding: 14px 45px 14px 14px !important; 
+    /* left normal, right space for eye icon */
+}
+/* FOCUS */
+.input-row input:focus,
+.input-row select:focus {
+    outline: none;
+    box-shadow: 0 8px 22px rgba(140,52,214,0.2);
+}
+
+/* VALIDATION STATES */
+.input-row input.valid,
+.input-row select.valid {
+    border-color: green !important;
+}
+
+.input-row input.invalid,
+.input-row select.invalid {
+    border-color: red !important;
+}
+
+/* PASSWORD ICON */
 #togglePassword,
 #toggleConfirmPassword {
     width: 20px;
@@ -167,8 +188,7 @@
     transform: translateY(-50%);
     cursor: pointer;
     fill: #8c34d6;
-    z-index: 2;
-    transition: fill 0.2s ease;
+    transition: 0.2s ease;
 }
 
 #togglePassword:hover,
@@ -176,95 +196,73 @@
     fill: #6a1b9a;
 }
 
-        
-        .input-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--muted);
-            margin-bottom: 6px;
-            margin-left: 2px;
-        }
-        .input-row input:focus,
-        .input-row select:focus {
-            border-color:var(--accent);
-            outline:none;
-            box-shadow:0 8px 22px rgba(140,52,214,0.2);
-        }
-
-        /* Friend-style validation: red when invalid, green when valid */
-        .input-row input:invalid,
-        .input-row select:invalid {
-            border-color: red !important;
-        }
-
-        .input-row input:valid,
-        .input-row select:valid {
-            border-color: green !important;
-        }
-
-        
-        .field-grid{
-            display:grid;
-            grid-template-columns:repeat(2,1fr);
-            gap:14px;
-        }
-
-        /* Age and height inputs padding */
-.input-row input[name="age"],
-.input-row input[name="height_cm"] {
-    padding-left: 45px;  
-    padding-right: 14px; 
+/* GRID */
+.field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
 }
 
-/* Make icons not block clicks */
-.input-row svg.input-icon {
-    pointer-events: none;
-    left:12px;
+/* BUTTON */
+button {
+    width: 100%;
+    margin-top: 24px;
+    padding: 15px;
+    border: none;
+    border-radius: 18px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg,#ffb867,#ff7ea5,#a347f4);
+    cursor: pointer;
 }
 
-        button{
-            width:100%;
-            margin-top:24px;
-            padding:15px;
-            border:none;
-            border-radius:18px;
-            font-size:16px;
-            font-weight:600;
-            color:#fff;
-            background:linear-gradient(135deg,#ffb867,#ff7ea5,#a347f4);
-            cursor:pointer;
-        }
-        .switch{
-            text-align:center;
-            margin-top:18px;
-            font-size:14px;
-        }
-        .switch a{
-            color:var(--accent);
-            font-weight:600;
-            text-decoration:none;
-        }
-        .mini-food {
-            margin-top: 28px;
-            display: flex;
-            justify-content: center;
-        }
-        .mini-food svg {
-            width: 150px;
-            height: auto;
-        }
-        @media(max-width:920px){
-            .content{flex-direction:column;}
-            .hero-pane,.form-pane{flex:1 1 100%;}
-            .hero-illustration {
-                margin: 0 auto;
-            }
-        }
-        @media(max-width:540px){
-            .field-grid{grid-template-columns:1fr;}
-        }
-    </style>
+/* SWITCH */
+.switch {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 14px;
+}
+
+.switch a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* MINI FOOD */
+.mini-food {
+    margin-top: 28px;
+    display: flex;
+    justify-content: center;
+}
+
+.mini-food svg {
+    width: 150px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 920px) {
+    .content {
+        flex-direction: column;
+    }
+
+    .hero-pane {
+        flex: 1;
+        padding: 50px;
+    }
+
+    .form-pane {
+        padding: 40px 20px;
+    }
+}
+
+@media (max-width: 540px) {
+    .field-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 </head>
 
 <body>
@@ -479,26 +477,53 @@ function togglePasswordVisibility(inputId, iconId) {
 function checkPasswordMatch() {
     const password = document.getElementById('password');
     const confirmPassword = document.getElementById('confirm_password');
-    if (!password || !confirmPassword) return;
 
     if (confirmPassword.value === '') {
-        confirmPassword.setCustomValidity('');
+        confirmPassword.classList.remove("valid", "invalid");
         return;
     }
 
-    // If the main password doesn't meet the pattern rules, mark confirm as invalid too.
     if (!password.checkValidity()) {
-        confirmPassword.setCustomValidity('Password strength is not valid.');
+        confirmPassword.classList.add("invalid");
+        confirmPassword.classList.remove("valid");
         return;
     }
 
-    confirmPassword.setCustomValidity(
-        password.value === confirmPassword.value ? '' : 'Passwords do not match.'
-    );
+    if (password.value === confirmPassword.value) {
+        confirmPassword.classList.add("valid");
+        confirmPassword.classList.remove("invalid");
+    } else {
+        confirmPassword.classList.add("invalid");
+        confirmPassword.classList.remove("valid");
+    }
+}
+</script>
+
+<script>
+function validateField(el) {
+    // skip empty field (don’t mark red immediately)
+    if (el.value.trim() === "") {
+        el.classList.remove("valid", "invalid");
+        return;
+    }
+
+    if (el.checkValidity()) {
+        el.classList.add("valid");
+        el.classList.remove("invalid");
+    } else {
+        el.classList.add("invalid");
+        el.classList.remove("valid");
+    }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    checkPasswordMatch();
+// attach to all inputs
+document.addEventListener("DOMContentLoaded", () => {
+    const fields = document.querySelectorAll("input, select");
+
+    fields.forEach(field => {
+        field.addEventListener("input", () => validateField(field));
+        field.addEventListener("change", () => validateField(field));
+    });
 });
 </script>
 

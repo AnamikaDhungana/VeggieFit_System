@@ -54,7 +54,7 @@ if ($user) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
 
-        $mail->setFrom('veggiefit22@gmail.com', 'VeggieFit Support');
+        $mail->setFrom('example@gmail.com', 'VeggieFit Support');
         $mail->addAddress($email);
 
         $mail->isHTML(true);

@@ -17,20 +17,47 @@ $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
 $selectedUser = $_GET['user_id'] ?? ($users[0]['user_id'] ?? null);
 if (!$selectedUser) die("No users found.");
 
-// Default date range (last 30 days)
-$default_start = date('Y-m-d', strtotime('-30 days'));
-$default_end = date('Y-m-d');
+/* ================= USER INFO FIRST (IMPORTANT) ================= */
+$userStmt = $conn->prepare("SELECT username, email, created_at FROM users WHERE user_id = ?");
+$userStmt->execute([$selectedUser]);
+$userInfo = $userStmt->fetch(PDO::FETCH_ASSOC);
 
-// Get date range with validation
-$start_date = isset($_GET['start_date']) && !empty($_GET['start_date']) ? $_GET['start_date'] : $default_start;
-$end_date = isset($_GET['end_date']) && !empty($_GET['end_date']) ? $_GET['end_date'] : $default_end;
+if (!$userInfo) {
+    die("User not found.");
+}
 
-// Ensure start_date is not after end_date
+$user_join_date = date('Y-m-d', strtotime($userInfo['created_at']));
+$today = date('Y-m-d');
+
+/* ================= DATE RANGE LOGIC (FIXED) ================= */
+
+// Default = join date → today
+$default_start = $user_join_date;
+$default_end = $today;
+
+// Input dates
+$start_date = isset($_GET['start_date']) && !empty($_GET['start_date'])
+    ? $_GET['start_date']
+    : $default_start;
+
+$end_date = isset($_GET['end_date']) && !empty($_GET['end_date'])
+    ? $_GET['end_date']
+    : $default_end;
+
+// Safety rules
+if (strtotime($start_date) < strtotime($user_join_date)) {
+    $start_date = $user_join_date;
+}
+
+if (strtotime($end_date) > strtotime($today)) {
+    $end_date = $today;
+}
+
 if (strtotime($start_date) > strtotime($end_date)) {
     $start_date = $end_date;
 }
 
-// Fetch user's progress
+/* ================= FETCH PROGRESS ================= */
 $progressStmt = $conn->prepare("
     SELECT date, weight_kg, calories_consumed, notes
     FROM progress_tracking
@@ -40,19 +67,13 @@ $progressStmt = $conn->prepare("
 $progressStmt->execute([$selectedUser, $start_date, $end_date]);
 $progressLogs = $progressStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Get user info
-$userStmt = $conn->prepare("SELECT username, email, created_at FROM users WHERE user_id = ?");
-$userStmt->execute([$selectedUser]);
-$userInfo = $userStmt->fetch(PDO::FETCH_ASSOC);
-
-// Calculate stats
+/* ================= STATS ================= */
 $totalEntries = count($progressLogs);
-$today = date('Y-m-d');
 
-// Check if logged today
 $loggedToday = false;
 $todayWeight = null;
 $todayCalories = null;
+
 foreach ($progressLogs as $log) {
     if ($log['date'] == $today) {
         $loggedToday = true;
@@ -62,23 +83,24 @@ foreach ($progressLogs as $log) {
     }
 }
 
-// Weight stats
 $latestWeight = $totalEntries > 0 ? end($progressLogs)['weight_kg'] : 0;
 $oldestWeight = $totalEntries > 0 ? $progressLogs[0]['weight_kg'] : 0;
 $weightChange = $totalEntries > 0 ? $latestWeight - $oldestWeight : 0;
 
-// Calorie stats
 $calorieDays = array_filter($progressLogs, fn($l) => $l['calories_consumed'] > 0);
-$avgCalories = count($calorieDays) > 0 ? round(array_sum(array_column($calorieDays, 'calories_consumed')) / count($calorieDays)) : 0;
+$avgCalories = count($calorieDays) > 0
+    ? round(array_sum(array_column($calorieDays, 'calories_consumed')) / count($calorieDays))
+    : 0;
 
-// Consistency score
 $totalDaysInRange = (strtotime($end_date) - strtotime($start_date)) / 86400 + 1;
-$consistencyScore = $totalDaysInRange > 0 ? round(($totalEntries / $totalDaysInRange) * 100) : 0;
+$consistencyScore = $totalDaysInRange > 0
+    ? round(($totalEntries / $totalDaysInRange) * 100)
+    : 0;
 
-// All-time stats
+/* ================= ALL TIME ================= */
 $allTimeStmt = $conn->prepare("
-    SELECT COUNT(*) as total_all, 
-           MIN(weight_kg) as min_weight, 
+    SELECT COUNT(*) as total_all,
+           MIN(weight_kg) as min_weight,
            MAX(weight_kg) as max_weight,
            MIN(date) as first_log
     FROM progress_tracking 
@@ -87,15 +109,18 @@ $allTimeStmt = $conn->prepare("
 $allTimeStmt->execute([$selectedUser]);
 $allTimeStats = $allTimeStmt->fetch(PDO::FETCH_ASSOC);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($userInfo['username'] ?? 'User') ?> · Progress · VeggieFit Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?= htmlspecialchars($userInfo['username'] ?? 'User') ?> · Progress</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
         * {
             margin: 0;
             padding: 0;
@@ -544,274 +569,92 @@ $allTimeStats = $allTimeStmt->fetch(PDO::FETCH_ASSOC);
             }
         }
     </style>
+
 </head>
+
 <body>
-    <div class="container">
-        <!-- Header with back button only -->
-        <div class="header">
-            <div class="header-left">
-                <h1>User Progress</h1>
-                <p>Track and analyze individual user progress</p>
-            </div>
-            <a href="admin_dashboard.php" class="back-btn">← Back to Dashboard</a>
-        </div>
+<div class="container">
 
-        <!-- Filter Card -->
-        <div class="filter-card">
-            <form method="GET" class="filter-form">
-                <div class="filter-group">
-                    <label>Select User</label>
-                    <select name="user_id" onchange="this.form.submit()">
-                        <?php foreach($users as $u): ?>
-                            <option value="<?= $u['user_id'] ?>" <?= $selectedUser == $u['user_id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($u['username']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>From</label>
-                    <input type="date" name="start_date" value="<?= $start_date ?>">
-                </div>
-                <div class="filter-group">
-                    <label>To</label>
-                    <input type="date" name="end_date" value="<?= $end_date ?>">
-                </div>
-                <button type="submit" class="apply-btn">Apply</button>
-                
-                <!-- Quick Presets -->
-                <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-7 days')) ?>&end_date=<?= date('Y-m-d') ?>" class="preset-btn">7 Days</a>
-                <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-30 days')) ?>&end_date=<?= date('Y-m-d') ?>" class="preset-btn">30 Days</a>
-                <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-90 days')) ?>&end_date=<?= date('Y-m-d') ?>" class="preset-btn">90 Days</a>
-            </form>
-        </div>
-
-        <!-- User Info Card -->
-        <div class="user-card">
-            <div class="user-info">
-                <h2><?= htmlspecialchars($userInfo['username'] ?? 'Unknown User') ?></h2>
-                <div class="user-meta">
-                    <span>📧 <?= htmlspecialchars($userInfo['email'] ?? 'No email') ?></span>
-                    <span>📅 Joined: <?= $userInfo['created_at'] ? date('M j, Y', strtotime($userInfo['created_at'])) : 'N/A' ?></span>
-                    <span>📊 Total logs: <?= $allTimeStats['total_all'] ?? 0 ?></span>
-                </div>
-            </div>
-            <div class="user-minmax">
-                <div class="minmax-item">
-                    <div class="minmax-label">Min Weight</div>
-                    <div class="minmax-value"><?= $allTimeStats['min_weight'] ? number_format($allTimeStats['min_weight'], 1) . ' kg' : '-' ?></div>
-                </div>
-                <div class="minmax-item">
-                    <div class="minmax-label">Max Weight</div>
-                    <div class="minmax-value"><?= $allTimeStats['max_weight'] ? number_format($allTimeStats['max_weight'], 1) . ' kg' : '-' ?></div>
-                </div>
-            </div>
-        </div>
-
-        <?php if ($totalEntries > 0): ?>
-            <!-- Today Status -->
-            <div class="today-banner">
-                <div class="banner-icon"><?= $loggedToday ? '✓' : '⏰' ?></div>
-                <div class="banner-content">
-                    <?php if ($loggedToday): ?>
-                        <h3>✓ Logged Today (<?= $today ?>)</h3>
-                        <p>Weight: <?= number_format($todayWeight, 1) ?> kg • Calories: <?= $todayCalories ? number_format($todayCalories) . ' kcal' : 'Not logged' ?></p>
-                    <?php else: ?>
-                        <h3>⏰ No Entry Today</h3>
-                        <p>Last log: <?= end($progressLogs)['date'] ?> • Consistency: <?= $consistencyScore ?>%</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Stats -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">📅</div>
-                        <div class="stat-label">Entries</div>
-                    </div>
-                    <div class="stat-value"><?= $totalEntries ?></div>
-                    <div class="stat-trend">of <?= round($totalDaysInRange) ?> days (<?= $consistencyScore ?>%)</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">⚖️</div>
-                        <div class="stat-label">Current</div>
-                    </div>
-                    <div class="stat-value"><?= number_format($latestWeight, 1) ?> kg</div>
-                    <div class="stat-trend">as of <?= end($progressLogs)['date'] ?></div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">📉</div>
-                        <div class="stat-label">Change</div>
-                    </div>
-                    <div class="stat-value <?= $weightChange < 0 ? 'trend-down' : ($weightChange > 0 ? 'trend-up' : '') ?>">
-                        <?= $weightChange > 0 ? '+' : '' ?><?= number_format($weightChange, 1) ?> kg
-                    </div>
-                    <div class="stat-trend">
-                        <?php if ($weightChange < 0): ?>↓ Lost <?= number_format(abs($weightChange), 1) ?> kg
-                        <?php elseif ($weightChange > 0): ?>↑ Gained <?= number_format($weightChange, 1) ?> kg
-                        <?php else: ?>→ No change
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">🔥</div>
-                        <div class="stat-label">Avg Calories</div>
-                    </div>
-                    <div class="stat-value"><?= $avgCalories ?: '-' ?> <?= $avgCalories ? 'kcal' : '' ?></div>
-                    <div class="stat-trend">across <?= count($calorieDays) ?> days</div>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="charts-grid">
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div class="chart-title">📈 Weight Progress</div>
-                        <span class="badge"><?= $totalEntries ?> points</span>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="weightChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div class="chart-title">🔥 Calorie Intake</div>
-                        <span class="badge">Avg: <?= $avgCalories ?: '0' ?> kcal</span>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="calorieChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Table -->
-            <div class="table-card">
-                <div class="table-header">
-                    <h3>📋 Daily Logs</h3>
-                    <span><?= $totalEntries ?> entries • <?= $start_date ?> to <?= $end_date ?></span>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Weight</th>
-                                <th>Change</th>
-                                <th>Calories</th>
-                                <th>Notes</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php 
-                            $prevWeight = null;
-                            foreach(array_reverse($progressLogs) as $log): 
-                                $dailyChange = $prevWeight ? $log['weight_kg'] - $prevWeight : null;
-                                $prevWeight = $log['weight_kg'];
-                            ?>
-                                <tr class="<?= $log['date'] == $today ? 'today-row' : '' ?>">
-                                    <td>
-                                        <?= date('M j, Y', strtotime($log['date'])) ?>
-                                        <?php if($log['date'] == $today): ?>
-                                            <span class="today-badge">Today</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><strong><?= number_format($log['weight_kg'], 1) ?> kg</strong></td>
-                                    <td>
-                                        <?php if ($dailyChange !== null): ?>
-                                            <?php if ($dailyChange > 0): ?>
-                                                <span class="trend-up">↑ +<?= number_format($dailyChange, 1) ?> kg</span>
-                                            <?php elseif ($dailyChange < 0): ?>
-                                                <span class="trend-down">↓ <?= number_format($dailyChange, 1) ?> kg</span>
-                                            <?php else: ?>
-                                                <span class="trend-neutral">→ 0 kg</span>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            —
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if($log['calories_consumed'] > 0): ?>
-                                            <?= number_format($log['calories_consumed']) ?> kcal
-                                        <?php else: ?>
-                                            —
-                                        <?php endif; ?>
-                                    </td>
-                                    <td style="color: <?= $log['notes'] ? '#1e293b' : '#94a3b8' ?>;">
-                                        <?= $log['notes'] ? htmlspecialchars(substr($log['notes'], 0, 30)) . (strlen($log['notes']) > 30 ? '…' : '') : '—' ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <script>
-                const logs = <?= json_encode($progressLogs) ?>;
-                const dates = logs.map(l => {
-                    const d = new Date(l.date);
-                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                });
-                
-                // Weight Chart
-                new Chart(document.getElementById('weightChart'), {
-                    type: 'line',
-                    data: {
-                        labels: dates,
-                        datasets: [{
-                            data: logs.map(l => l.weight_kg),
-                            borderColor: '#2d6a4f',
-                            backgroundColor: 'rgba(45, 106, 79, 0.08)',
-                            borderWidth: 3,
-                            tension: 0.3,
-                            fill: true,
-                            pointBackgroundColor: logs.map(l => l.date == '<?= $today ?>' ? '#dc2626' : '#2d6a4f'),
-                            pointRadius: logs.map(l => l.date == '<?= $today ?>' ? 6 : 4)
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-
-                // Calorie Chart
-                new Chart(document.getElementById('calorieChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: dates,
-                        datasets: [{
-                            data: logs.map(l => l.calories_consumed || 0),
-                            backgroundColor: logs.map(l => l.calories_consumed > 2000 ? '#f97316' : '#8b5cf6'),
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-            </script>
-
-        <?php else: ?>
-
-            <!-- Empty State -->
-            <div class="empty-state">
-                <div class="empty-icon">📊</div>
-                <h3>No Data Found</h3>
-                <p>No entries for <?= htmlspecialchars($userInfo['username'] ?? 'this user') ?> between <?= $start_date ?> and <?= $end_date ?></p>
-                <div class="btn-group">
-                    <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-7 days')) ?>&end_date=<?= date('Y-m-d') ?>" class="apply-btn">Last 7 Days</a>
-                    <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-30 days')) ?>&end_date=<?= date('Y-m-d') ?>" class="preset-btn">Last 30 Days</a>
-                </div>
-            </div>
-        <?php endif; ?>
+<!-- HEADER -->
+<div class="header">
+    <div class="header-left">
+        <h1>User Progress</h1>
+        <p>Track and analyze individual user progress</p>
     </div>
+    <a href="admin_dashboard.php" class="back-btn">← Back to Dashboard</a>
+</div>
+
+<!-- FILTER -->
+<div class="filter-card">
+<form method="GET" class="filter-form">
+
+    <div class="filter-group">
+        <label>Select User</label>
+        <select name="user_id" onchange="this.form.submit()">
+            <?php foreach($users as $u): ?>
+                <option value="<?= $u['user_id'] ?>" <?= $selectedUser == $u['user_id'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($u['username']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label>From</label>
+        <input type="date" name="start_date"
+               min="<?= $user_join_date ?>"
+               max="<?= $today ?>"
+               value="<?= $start_date ?>">
+    </div>
+
+    <div class="filter-group">
+        <label>To</label>
+        <input type="date" name="end_date"
+               min="<?= $user_join_date ?>"
+               max="<?= $today ?>"
+               value="<?= $end_date ?>">
+    </div>
+
+    <button type="submit" class="apply-btn">Apply</button>
+
+    <!-- PRESETS -->
+    <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-7 days', strtotime($today))) ?>&end_date=<?= $today ?>" class="preset-btn">7 Days</a>
+
+    <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-30 days', strtotime($today))) ?>&end_date=<?= $today ?>" class="preset-btn">30 Days</a>
+
+    <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-90 days', strtotime($today))) ?>&end_date=<?= $today ?>" class="preset-btn">90 Days</a>
+
+</form>
+</div>
+
+<!-- USER CARD -->
+<div class="user-card">
+    <div class="user-info">
+        <h2><?= htmlspecialchars($userInfo['username']) ?></h2>
+        <div class="user-meta">
+            <span>📧 <?= htmlspecialchars($userInfo['email']) ?></span>
+            <span>📅 Joined: <?= date('M j, Y', strtotime($userInfo['created_at'])) ?></span>
+            <span>📊 Total logs: <?= $allTimeStats['total_all'] ?? 0 ?></span>
+        </div>
+    </div>
+</div>
+
+<!-- EMPTY STATE -->
+<?php if ($totalEntries == 0): ?>
+<div class="empty-state">
+    <div class="empty-icon">📊</div>
+    <h3>No Data Found</h3>
+    <p>No entries for <?= htmlspecialchars($userInfo['username']) ?>
+    between <?= $start_date ?> and <?= $end_date ?></p>
+
+    <div class="btn-group">
+        <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-7 days', strtotime($today))) ?>&end_date=<?= $today ?>" class="apply-btn">Last 7 Days</a>
+
+        <a href="?user_id=<?= $selectedUser ?>&start_date=<?= date('Y-m-d', strtotime('-30 days', strtotime($today))) ?>&end_date=<?= $today ?>" class="preset-btn">Last 30 Days</a>
+    </div>
+</div>
+<?php endif; ?>
+
+</div>
 </body>
 </html>
